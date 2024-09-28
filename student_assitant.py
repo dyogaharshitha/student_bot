@@ -13,8 +13,7 @@ classes
 -
 """
 
-from google.colab import drive
-drive.mount('/content/drive')
+
 
 !pip install pdfplumber sentence_transformers transformers faiss-cpu streamlit
 
