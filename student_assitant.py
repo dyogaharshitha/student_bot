@@ -22,7 +22,6 @@ class LLM_model:
   def load_model(self):
     if self.model_type == 'generator':
         dtype = torch.bfloat16
-        #access_token = "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"
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained( self.model_name,torch_dtype=dtype,
@@ -57,22 +56,22 @@ class LLM_func(LLM_model):
       query_emb = self.retriever.encode(query)
       query_emb = np.array([query_emb]).astype("float32")  # Ensure the query is in the correct shape for FAISS
       df = pd.read_json(f'{subject_path}/class7_history.json')
-      chapter_embs = df['key_embedding'].apply(lambda x:np.array(x[0])) ;# print('chapter_embs', chapter_embs)
-      chapter_embs = np.array(chapter_embs.tolist()) ;# print('chapter_embs', chapter_embs)
+      chapter_embs = df['key_embedding'].apply(lambda x:np.array(x[0])) ;
+      chapter_embs = np.array(chapter_embs.tolist()) ;
       d = chapter_embs.shape[1]  # Dimensionality of the embeddings
       index = faiss.IndexFlatL2(d)  # L2 distance index (Euclidean)
-      #chapter_embs = np.array(chapter_embs).astype("float32")  # Ensure the embeddings are in the correct format
+      # Ensure the embeddings are in the correct format
       index.add(chapter_embs)
-      distances, indices = index.search(query_emb, 1) ; #print(distances, indices)
+      distances, indices = index.search(query_emb, 1) ; 
       chapter_num = indices[0][0] +1
       # get relevent paragraph
       df = pd.read_json(f'{subject_path}/chapter{chapter_num}.json')
-      para_embs = df['embedding'].apply(lambda x:np.array(x[0])) ; #print('para_embs', para_embs)
-      para_embs = np.array(para_embs.tolist())#.astype("float32")  # Ensure the embeddings are in the correct format
+      para_embs = df['embedding'].apply(lambda x:np.array(x[0])) ; 
+      para_embs = np.array(para_embs.tolist())  # Ensure the embeddings are in the correct format
       d = para_embs.shape[1]  # Dimensionality of the embeddings
       index = faiss.IndexFlatL2(d)  # L2 distance index (Euclidean)
       index.add(para_embs)
-      distances, indices = index.search(query_emb, 2) ; # print(distances, indices)
+      distances, indices = index.search(query_emb, 2) ; 
       (index, indx2) = ( indices[0][0] , indices[0][1])
       paragraph = df.iloc[index] ;   p2 = df.iloc[indx2] ; p3 = df.iloc[index-1] 
       return p3['paragraph'] + paragraph['paragraph']+ p2['paragraph']  
@@ -111,13 +110,9 @@ class LLM_func(LLM_model):
     outputs = self.model.generate(input_ids=inputs.to(self.model.device), max_new_tokens=250)
     generated_answer = self.tokenizer.decode(outputs[0]) + "###End"
     mtch = re.search(r"##Question:\s(.*?)\s*###End", generated_answer, re.DOTALL)
-    #ans = mtch.group(1) if mtch else ""
     question = mtch.group(1) if mtch else ""
     return question 
 
-    
-#llm = LLM_func('generator')
-#llm.answer_question("who are khaljis and tughlaqs?")
 
 
 
@@ -125,7 +120,7 @@ class LLM_func(LLM_model):
 
 import os, re , json
 import pandas as pd
-#import spacy
+import spacy
 import pdfplumber
 from transformers import pipeline
 
@@ -151,11 +146,11 @@ class LLM_enc(LLM_model):
       for page in pdf.pages:
         text += page.extract_text()
       return text
-  """def extract_keywords(self, text):
+  def extract_keywords(self, text):
     nlp = spacy.load("en_core_web_sm")
     doc = nlp(text)
     keywords = list(set([chunk.text for chunk in doc.noun_chunks]))
-    return keywords  """
+    return keywords  
 	
   def get_chapter_emb(self ):
     pass
@@ -214,7 +209,6 @@ class LLM_enc(LLM_model):
 
     for filename in os.listdir(folder_path):
         if filename.endswith(".pdf"):
-            # chapter_num = filename.split('.')[0]  # Assuming filename represents chapter number or name
             chapter_num, chapter_title = self.get_chapter_number_name(filename)
             pdf_path = os.path.join(folder_path, filename)
             chapter_text = self.read_pdf(pdf_path)
@@ -222,11 +216,11 @@ class LLM_enc(LLM_model):
             self.get_paraghraph_emb(chapter_text,chapter_num, folder_path)
 
             summary = self.summarize_text(chapter_text)
-            keywords = " " #extract_keywords(chapter_text)
+            keywords = extract_keywords(chapter_text)
             chapter_embedding = self.model.encode(summary, convert_to_tensor=True).cpu().numpy().reshape(1, -1)
             data.append([chapter_num,chapter_embedding, summary, keywords])
 
-            #self.get_paraghraph_emb(chapter_text,chapter_num, folder_path)
+            self.get_paraghraph_emb(chapter_text,chapter_num, folder_path)
     df = pd.DataFrame(data, columns=["Chapter", "embedding", "Summary", "Keywords"])
     json_data = df.to_json(orient='records')
     json_file = os.path.join(folder_path, f'{self.subject}.json')
